@@ -13,16 +13,14 @@ async function showNumberTrivia() {
 
 }
 
+
 /* asks for trivia about four different numbers
 (using four separate requests),*/
-async function showNumberRace() {
-  const p1 = fetch(`http://numbersapi.com/${getRandomNumber()}?json`);
-  const p2 = fetch(`http://numbersapi.com/${getRandomNumber()}?json`);
-  const p3 = fetch(`http://numbersapi.com/${getRandomNumber()}?json`);
-  const p4 = fetch(`http://numbersapi.com/${getRandomNumber()}?json`);
+async function showNumberRace(numbers) {
+  promises = numbers.map(num => fetch(`http://numbersapi.com/${num}?json`))
 
   const answerPromise = await Promise.race(
-    [p1, p2, p3, p4]
+    promises
   );
 
   const response = await answerPromise.json();
@@ -37,3 +35,46 @@ function getRandomNumber() {
   return Math.floor(randomNumber * 101);
 }
 
+/** ask trivia about several different numbers. console logs array of trivia for
+ * responses with successful status code as well as array of error messages for
+ * failed status code.
+ */
+async function showNumberAll(numbers) {
+  promises = numbers.map(num => fetch(`http://numbersapi.com/${num}?json`))
+
+  const results = await Promise.allSettled(promises);
+
+  const fulfilledResps = results.filter(r => r.status == 'fulfilled' && r.value.ok === true);
+  const facts = [];
+  for (let result of fulfilledResps) {
+    const fact = await result.value.json();
+    facts.push(fact.text);
+  }
+  console.log('showNumberAll fulfilled:');
+  console.log(facts);
+
+  const failedResps = results.filter(
+    r => r.status == 'rejected' || r.value.ok === false
+  );
+  const errs = [];
+  for (let result of failedResps) {
+    if (result.status == 'rejected') {
+      errs.push(result.reason);
+    } else {
+      errs.push(`Request failed with status code ${result.value.status}`);
+    }
+  }
+
+  console.log('showNumberAll rejected:');
+  console.log(errs);
+}
+
+async function main() {
+  console.log('showNumberTrivia');
+  await showNumberTrivia();
+  console.log('showNumberRace');
+  await showNumberRace();
+  await showNumberAll();
+}
+
+main();
